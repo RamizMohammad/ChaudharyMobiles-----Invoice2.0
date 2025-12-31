@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { InvoiceItem, InvoicePayload, PaymentMode } from "../types";
-import InvoiceViewer from "./InvoiceViewer";
 
 interface CreateInvoiceProps {
   onBack: () => void;
@@ -26,17 +25,6 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-
-  /* ---------------- PDF VIEW ---------------- */
-  if (pdfUrl) {
-    return (
-      <InvoiceViewer
-        pdfUrl={pdfUrl}
-        onBack={() => setPdfUrl(null)}
-      />
-    );
-  }
 
   /* ---------------- LOGIC ---------------- */
 
@@ -117,7 +105,7 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
       const data = await res.json();
 
       if (data.pdf_url) {
-        setPdfUrl(data.pdf_url); // ✅ OPEN INSIDE APP
+        window.location.href = data.pdf_url;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invoice failed");
@@ -160,6 +148,199 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
             value={customerAddress}
             onChange={(e) => setCustomerAddress(e.target.value)}
           />
+        </div>
+
+        <div className="bg-white border rounded p-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Items</h2>
+            <button
+              onClick={() =>
+                setItems([
+                  ...items,
+                  {
+                    category: "Phone",
+                    item_name: "",
+                    quantity: 1,
+                    price: 0,
+                    imei_1: "",
+                    imei_2: "",
+                    charger_included: false,
+                    charger_name: "",
+                    charger_serial_number: "",
+                  },
+                ])
+              }
+              className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
+            >
+              Add Item
+            </button>
+          </div>
+
+          {items.map((item, idx) => (
+            <div key={idx} className="border rounded p-3 space-y-3 bg-gray-50">
+              <div className="flex justify-between items-center">
+                <select
+                  value={item.category}
+                  onChange={(e) => {
+                    const newItems = [...items];
+                    newItems[idx].category = e.target.value as "Phone" | "Charger";
+                    setItems(newItems);
+                  }}
+                  className="border px-3 py-2 rounded"
+                >
+                  <option>Phone</option>
+                  <option>Charger</option>
+                </select>
+                {items.length > 1 && (
+                  <button
+                    onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                    className="text-red-600 text-sm"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              <input
+                placeholder="Item Name"
+                value={item.item_name}
+                onChange={(e) => {
+                  const newItems = [...items];
+                  newItems[idx].item_name = e.target.value;
+                  setItems(newItems);
+                }}
+                className="w-full border px-3 py-2 rounded text-sm"
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  placeholder="Quantity"
+                  value={item.quantity}
+                  onChange={(e) => {
+                    const newItems = [...items];
+                    newItems[idx].quantity = parseInt(e.target.value) || 0;
+                    setItems(newItems);
+                  }}
+                  className="border px-3 py-2 rounded text-sm"
+                />
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={item.price}
+                  onChange={(e) => {
+                    const newItems = [...items];
+                    newItems[idx].price = parseFloat(e.target.value) || 0;
+                    setItems(newItems);
+                  }}
+                  className="border px-3 py-2 rounded text-sm"
+                />
+              </div>
+
+              {item.category === "Phone" && (
+                <div className="space-y-2 bg-blue-50 p-2 rounded">
+                  <input
+                    placeholder="IMEI 1"
+                    value={item.imei_1}
+                    onChange={(e) => {
+                      const newItems = [...items];
+                      newItems[idx].imei_1 = e.target.value;
+                      setItems(newItems);
+                    }}
+                    className="w-full border px-3 py-2 rounded text-sm"
+                  />
+                  <input
+                    placeholder="IMEI 2 (optional)"
+                    value={item.imei_2}
+                    onChange={(e) => {
+                      const newItems = [...items];
+                      newItems[idx].imei_2 = e.target.value;
+                      setItems(newItems);
+                    }}
+                    className="w-full border px-3 py-2 rounded text-sm"
+                  />
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={item.charger_included}
+                      onChange={(e) => {
+                        const newItems = [...items];
+                        newItems[idx].charger_included = e.target.checked;
+                        setItems(newItems);
+                      }}
+                    />
+                    <span className="text-sm">Charger Included</span>
+                  </label>
+                  {item.charger_included && (
+                    <div className="space-y-2">
+                      <input
+                        placeholder="Charger Name"
+                        value={item.charger_name}
+                        onChange={(e) => {
+                          const newItems = [...items];
+                          newItems[idx].charger_name = e.target.value;
+                          setItems(newItems);
+                        }}
+                        className="w-full border px-3 py-2 rounded text-sm"
+                      />
+                      <input
+                        placeholder="Charger Serial Number (optional)"
+                        value={item.charger_serial_number}
+                        onChange={(e) => {
+                          const newItems = [...items];
+                          newItems[idx].charger_serial_number = e.target.value;
+                          setItems(newItems);
+                        }}
+                        className="w-full border px-3 py-2 rounded text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {item.category === "Charger" && (
+                <div className="space-y-2 bg-green-50 p-2 rounded">
+                  <input
+                    placeholder="Charger Name"
+                    value={item.charger_name}
+                    onChange={(e) => {
+                      const newItems = [...items];
+                      newItems[idx].charger_name = e.target.value;
+                      setItems(newItems);
+                    }}
+                    className="w-full border px-3 py-2 rounded text-sm"
+                  />
+                  <input
+                    placeholder="Serial Number (optional)"
+                    value={item.charger_serial_number}
+                    onChange={(e) => {
+                      const newItems = [...items];
+                      newItems[idx].charger_serial_number = e.target.value;
+                      setItems(newItems);
+                    }}
+                    className="w-full border px-3 py-2 rounded text-sm"
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white border rounded p-4">
+          <label className="block text-sm font-semibold mb-3">Payment Mode</label>
+          <div className="space-y-2">
+            {(["Cash", "Online", "Cheque"] as PaymentMode[]).map((mode) => (
+              <label key={mode} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="payment"
+                  checked={paymentMode === mode}
+                  onChange={() => setPaymentMode(mode)}
+                />
+                <span>{mode}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <button
