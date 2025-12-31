@@ -20,15 +20,15 @@ export default function InvoiceHistory({ onBack }: InvoiceHistoryProps) {
     setError("");
 
     try {
-      const response = await fetch("https://chaudharymobilesshopserver.onrender.com/invoices");
+      const response = await fetch(
+        "https://chaudharymobilesshopserver.onrender.com/invoices"
+      );
 
       if (!response.ok) {
         throw new Error("Failed to fetch invoices");
       }
 
       const data = await response.json();
-
-      // Backend returns ARRAY directly
       setInvoices(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch invoices");
@@ -73,8 +73,9 @@ export default function InvoiceHistory({ onBack }: InvoiceHistoryProps) {
     fetchInvoices();
   }, []);
 
+  // ✅ PWA-SAFE PDF OPEN
   const openPDF = (url: string) => {
-    window.open(url, "_blank");
+    window.location.href = url;
   };
 
   const formatDate = (dateString: string) => {
@@ -133,28 +134,25 @@ export default function InvoiceHistory({ onBack }: InvoiceHistoryProps) {
           </button>
         </div>
 
-        {/* ERROR */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
             {error}
           </div>
         )}
 
-        {/* LOADING */}
         {loading && (
           <div className="text-center py-12 text-gray-600">Loading...</div>
         )}
 
-        {/* EMPTY */}
         {!loading && invoices.length === 0 && (
           <div className="text-center py-12 text-gray-600">
             No invoices found
           </div>
         )}
 
-        {/* DESKTOP TABLE */}
         {!loading && invoices.length > 0 && (
           <>
+            {/* DESKTOP TABLE */}
             <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
@@ -206,7 +204,7 @@ export default function InvoiceHistory({ onBack }: InvoiceHistoryProps) {
               </table>
             </div>
 
-            {/* MOBILE CARDS */}
+            {/* MOBILE */}
             <div className="md:hidden space-y-3">
               {invoices.map((invoice) => (
                 <div

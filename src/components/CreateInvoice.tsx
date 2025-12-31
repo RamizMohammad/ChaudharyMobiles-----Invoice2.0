@@ -186,7 +186,7 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
       const data = await response.json();
 
       if (data.pdf_url) {
-        window.open(data.pdf_url, "_blank");
+        window.location.href = data.pdf_url;
 
         setCustomerName("");
         setCustomerAddress("");
