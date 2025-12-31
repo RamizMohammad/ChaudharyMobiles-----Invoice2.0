@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { Category, InvoiceItem, InvoicePayload, PaymentMode } from "../types";
+import type { InvoiceItem, InvoicePayload, PaymentMode } from "../types";
+import InvoiceViewer from "./InvoiceViewer";
 
 interface CreateInvoiceProps {
   onBack: () => void;
@@ -22,115 +23,43 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
       charger_serial_number: "",
     },
   ]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
-  // ✅ PWA / iOS SAFE PDF OPEN
-  const openPdfSafely = (url: string) => {
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_self";
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
+  /* ---------------- PDF VIEW ---------------- */
+  if (pdfUrl) {
+    return (
+      <InvoiceViewer
+        pdfUrl={pdfUrl}
+        onBack={() => setPdfUrl(null)}
+      />
+    );
+  }
 
-  const addItem = () => {
-    setItems([
-      ...items,
-      {
-        category: "Phone",
-        item_name: "",
-        quantity: 1,
-        price: 0,
-        imei_1: "",
-        imei_2: "",
-        charger_included: false,
-        charger_name: "",
-        charger_serial_number: "",
-      },
-    ]);
-  };
-
-  const removeItem = (index: number) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateItem = (
-    index: number,
-    field: keyof InvoiceItem,
-    value: string | number | boolean
-  ) => {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
-
-    if (field === "category") {
-      const category = value as Category;
-      if (category === "Charger") {
-        delete newItems[index].imei_1;
-        delete newItems[index].imei_2;
-        delete newItems[index].charger_included;
-      } else {
-        delete newItems[index].charger_name;
-        delete newItems[index].charger_serial_number;
-      }
-    }
-
-    if (field === "charger_included" && !value) {
-      delete newItems[index].charger_name;
-      delete newItems[index].charger_serial_number;
-    }
-
-    setItems(newItems);
-  };
+  /* ---------------- LOGIC ---------------- */
 
   const validateForm = (): boolean => {
-    if (!customerName.trim()) {
-      setError("Customer Name is required");
-      return false;
-    }
-    if (!customerAddress.trim()) {
-      setError("Customer Address is required");
-      return false;
-    }
+    if (!customerName.trim()) return setError("Customer Name required"), false;
+    if (!customerAddress.trim()) return setError("Customer Address required"), false;
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
 
-      if (item.category === "Phone" && !item.item_name.trim()) {
-        setError(`Item ${i + 1}: Item Name is required`);
-        return false;
-      }
-
-      if (item.quantity <= 0) {
-        setError(`Item ${i + 1}: Quantity must be greater than 0`);
-        return false;
-      }
-
-      if (item.price <= 0) {
-        setError(`Item ${i + 1}: Base Price must be greater than 0`);
-        return false;
-      }
+      if (item.quantity <= 0) return setError("Invalid quantity"), false;
+      if (item.price <= 0) return setError("Invalid price"), false;
 
       if (item.category === "Phone") {
-        if (!item.imei_1?.trim()) {
-          setError(`Item ${i + 1}: IMEI 1 is required`);
-          return false;
-        }
-        if (item.charger_included && !item.charger_name?.trim()) {
-          setError(`Item ${i + 1}: Charger Name is required`);
-          return false;
-        }
+        if (!item.imei_1?.trim()) return setError("IMEI required"), false;
+        if (item.charger_included && !item.charger_name?.trim())
+          return setError("Charger name required"), false;
       }
 
-      if (item.category === "Charger" && !item.charger_name?.trim()) {
-        setError(`Item ${i + 1}: Charger Name is required`);
-        return false;
-      }
+      if (item.category === "Charger" && !item.charger_name?.trim())
+        return setError("Charger name required"), false;
     }
+
     return true;
   };
 
@@ -141,6 +70,7 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
     const payload: InvoicePayload = {
       customer_name: customerName,
       customer_address: customerAddress,
+      payment_mode: paymentMode,
       items: items.map((item) => {
         const cleaned: InvoiceItem = {
           category: item.category,
@@ -168,7 +98,6 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
 
         return cleaned;
       }),
-      payment_mode: paymentMode,
     };
 
     setLoading(true);
@@ -183,31 +112,12 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
         }
       );
 
-      if (!res.ok) throw new Error("Failed to generate invoice");
+      if (!res.ok) throw new Error("Invoice generation failed");
 
       const data = await res.json();
 
       if (data.pdf_url) {
-        // ✅ MUST HAPPEN BEFORE STATE RESET
-        openPdfSafely(data.pdf_url);
-
-        // Reset form AFTER navigation
-        setCustomerName("");
-        setCustomerAddress("");
-        setPaymentMode("Cash");
-        setItems([
-          {
-            category: "Phone",
-            item_name: "",
-            quantity: 1,
-            price: 0,
-            imei_1: "",
-            imei_2: "",
-            charger_included: false,
-            charger_name: "",
-            charger_serial_number: "",
-          },
-        ]);
+        setPdfUrl(data.pdf_url); // ✅ OPEN INSIDE APP
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invoice failed");
@@ -216,10 +126,12 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
     }
   };
 
+  /* ---------------- UI ---------------- */
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white border-b px-4 py-4 sticky top-0 z-10">
-        <div className="flex justify-between max-w-4xl mx-auto">
+      <div className="bg-white border-b px-4 py-4 sticky top-0">
+        <div className="max-w-4xl mx-auto flex justify-between">
           <button onClick={onBack} className="border px-4 py-2 rounded">
             Back
           </button>
@@ -235,9 +147,7 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
           </div>
         )}
 
-        {/* CUSTOMER */}
         <div className="bg-white border rounded p-4 space-y-4">
-          <h2 className="font-semibold">Customer Details</h2>
           <input
             className="w-full border px-4 py-3 rounded"
             placeholder="Customer Name"
@@ -252,11 +162,10 @@ export default function CreateInvoice({ onBack }: CreateInvoiceProps) {
           />
         </div>
 
-        {/* SUBMIT */}
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full py-4 bg-gray-900 text-white rounded text-lg disabled:opacity-50"
+          className="w-full py-4 bg-gray-900 text-white rounded text-lg"
         >
           {loading ? "Generating..." : "Generate Invoice"}
         </button>
